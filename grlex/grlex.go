@@ -5,20 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 )
 
 type Token struct {
-	s string
-	t int
+	Str string
+	Tok int
 }
 
 // Tokens
 const (
-	NAME = iota
+	IDENTIFIER = iota
 	STRING
-	IDENTIFIER
 	CONST
 	EQUAL
 	COMMA
@@ -32,7 +30,6 @@ const (
 )
 
 var ctab map[int]string = map[int]string{
-	NAME:       "name",
 	STRING:     "str",
 	IDENTIFIER: "id",
 	CONST:      "const",
@@ -68,19 +65,20 @@ func isNumericConst(b, bp byte) bool {
 }
 
 func isStringConst(b, bp byte) bool {
-	//	fmt.Fprintf(os.Stderr, "b=%d(%c) bp=%d(%c) rv=%v\n",
-	//		b, b, bp, bp, b != '"' || bp == '\\')
 	return b != '"' || bp == '\\'
 }
 
 type Lexer struct {
-	rdr bufio.Reader
-	Cur Token
-	lno uint32
+	rdr    bufio.Reader
+	Cur    Token
+	lno    uint32
+	peekt  Token
+	peeke  error
+	peeked bool
 }
 
 func NewLexer(r io.Reader) *Lexer {
-	return &Lexer{*bufio.NewReader(r), Token{"", 0}, 0}
+	return &Lexer{rdr: *bufio.NewReader(r), lno: 1}
 }
 
 func (lxr *Lexer) consume1(sb *strings.Builder, eb byte) error {
@@ -89,7 +87,9 @@ func (lxr *Lexer) consume1(sb *strings.Builder, eb byte) error {
 		return err
 	}
 	if b != eb {
-		return errors.New("lex error")
+		s := fmt.Sprintf("error at line %d: expected char '%c' got '%c'",
+			lxr.lno, eb, b)
+		return errors.New(s)
 	}
 	sb.WriteByte(b)
 	return nil
@@ -126,25 +126,49 @@ func (lxr *Lexer) genTok(s string, t int) error {
 			return err
 		}
 	}
-	lxr.Cur.s = s
-	lxr.Cur.t = t
+	lxr.Cur.Str = s
+	lxr.Cur.Tok = t
 	return nil
 }
 
+func (lxr *Lexer) CurLine() uint32 {
+	return lxr.lno
+}
+
+func (lxr *Lexer) PeekToken() (Token, error) {
+	if lxr.peeked {
+		panic("only single token lookahead supported")
+	}
+	save := lxr.Cur
+	lxr.peeke = lxr.GetToken()
+	lxr.peekt = lxr.Cur
+	lxr.peeked = true
+	lxr.Cur = save
+	return lxr.peekt, lxr.peeke
+}
+
 func (lxr *Lexer) GetToken() error {
+	e := lxr.GetToken2()
+	return e
+}
+
+func (lxr *Lexer) GetToken2() error {
+	if lxr.peeked {
+		lxr.peeked = false
+		lxr.Cur = lxr.peekt
+		return lxr.peeke
+	}
 	var sb strings.Builder
 	for {
 		bsl, err := lxr.rdr.Peek(1)
 		if err != nil {
 			if err == io.EOF {
-				lxr.Cur.t = EOF
+				lxr.Cur.Tok = EOF
 				return nil
 			}
 			return err
 		}
 		b := bsl[0]
-
-		//fmt.Fprintf(os.Stderr, "loop: b is %v '%c'\n", b, b)
 
 		switch {
 		case b == ' ' || b == '\t':
@@ -160,8 +184,8 @@ func (lxr *Lexer) GetToken() error {
 			if err != nil {
 				return err
 			}
-			lxr.Cur.s = sb.String()
-			lxr.Cur.t = IDENTIFIER
+			lxr.Cur.Str = sb.String()
+			lxr.Cur.Tok = IDENTIFIER
 			return nil
 		case b >= '0' && b <= '9':
 			// Numeric constant
@@ -170,8 +194,8 @@ func (lxr *Lexer) GetToken() error {
 			if err != nil {
 				return err
 			}
-			lxr.Cur.s = sb.String()
-			lxr.Cur.t = CONST
+			lxr.Cur.Str = sb.String()
+			lxr.Cur.Tok = CONST
 			return nil
 		case b == '"':
 			// quoted string
@@ -185,8 +209,8 @@ func (lxr *Lexer) GetToken() error {
 			if err = lxr.consume1(&sb, '"'); err != nil {
 				return err
 			}
-			lxr.Cur.s = sb.String()
-			lxr.Cur.t = STRING
+			lxr.Cur.Str = sb.String()
+			lxr.Cur.Tok = STRING
 			return nil
 		case b == '=':
 			return lxr.genTok("=", EQUAL)
@@ -211,12 +235,14 @@ func (lxr *Lexer) GetToken() error {
 			} else if b == '-' {
 				return lxr.genTok("->", EDGEOPU)
 			} else {
-				fmt.Fprintf(os.Stderr, "unknown char: %v\n", b)
-				return errors.New("lex error")
+				s := fmt.Sprintf("error at line %d: unknown char: '%c'",
+					lxr.lno, b)
+				return errors.New(s)
 			}
 		default:
-			fmt.Fprintf(os.Stderr, "unknown char: %v\n", b)
-			return errors.New("lex error")
+			s := fmt.Sprintf("error at line %d: unknown char: '%c'",
+				lxr.lno, b)
+			return errors.New(s)
 		}
 	}
 }

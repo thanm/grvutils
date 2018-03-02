@@ -19,11 +19,11 @@ func tokenize(ins string) string {
 			sb.WriteString(fmt.Sprintf("error %v at token %d", err, i))
 			return sb.String()
 		}
-		if lxr.Cur.t == EOF {
+		if lxr.Cur.Tok == EOF {
 			return sb.String()
 		}
-		ts := TokenToString(lxr.Cur.t)
-		sb.WriteString(fmt.Sprintf("(%s '%s')", ts, lxr.Cur.s))
+		ts := TokenToString(lxr.Cur.Tok)
+		sb.WriteString(fmt.Sprintf("(%s '%s')", ts, lxr.Cur.Str))
 	}
 	return sb.String()
 }
