@@ -20,21 +20,26 @@ func split(s string) []string {
 
 func makeg() *Graph {
 	g := NewGraph()
-	g.MakeNode("1", "a")
-	g.MakeNode("2", "b")
-	g.MakeNode("3", "c")
-	g.AddEdge("1", "2")
-	g.AddEdge("2", "3")
-	g.AddEdge("3", "1")
-	g.AddEdge("3", "2")
+	attrs := map[string]string{"prop1": "2", "prop2": "zilch"}
+	attrs["label"] = "a"
+	g.MakeNode("1", attrs)
+	attrs["label"] = "b"
+	g.MakeNode("2", attrs)
+	attrs["label"] = "c"
+	g.MakeNode("3", attrs)
+	attrs["label"] = ""
+	g.AddEdge("1", "2", attrs)
+	g.AddEdge("2", "3", attrs)
+	g.AddEdge("3", "1", attrs)
+	g.AddEdge("3", "2", attrs)
 	return g
 }
 
 func TestBasic(t *testing.T) {
 	g := makeg()
-	exp := `N0: a E: { 1 }
-		N1: b E: { 2 }
-		N2: c E: { 0 1 }`
+	exp := `N0: 'a' E: { 1 }
+		N1: 'b' E: { 2 }
+		N2: 'c' E: { 0 1 }`
 	dump := g.String()
 	td := testutils.Check(dump, exp)
 	if td != "" {
@@ -45,9 +50,9 @@ func TestBasic(t *testing.T) {
 func TestTranspose(t *testing.T) {
 	g := makeg()
 	tg := g.Transpose()
-	exp := `N0: a E: { 2 }
-		N1: b E: { 0 2 }
-		N2: c E: { 1 }`
+	exp := `N0: 'a' E: { 2 }
+		N1: 'b' E: { 0 2 }
+		N2: 'c' E: { 1 }`
 	dump := tg.String()
 	td := testutils.Check(dump, exp)
 	if td != "" {

@@ -76,7 +76,9 @@ var attrValClass map[int]bool = map[int]bool{
 	grlex.CONST:      true,
 }
 
-func parseAttrList(lxr *grlex.Lexer, attrs map[string]string) error {
+// Confusingly, some attribute lists seem to have commas and some do not.
+
+func parseAttrList(lxr *grlex.Lexer, attrs map[string]string, comma bool) error {
 	var err error
 	var tok grlex.Token
 
@@ -88,15 +90,8 @@ func parseAttrList(lxr *grlex.Lexer, attrs map[string]string) error {
 		s := fmt.Sprintf("error %v", err)
 		return mkerror(lxr, s)
 	}
-	needContents := true
 	var key, val string
 	for {
-		if tok.Tok == grlex.RBRACKET {
-			if needContents {
-				return mkerror(lxr, "parsing attr list: expected ID")
-			}
-			break
-		}
 		if tok.Tok != grlex.IDENTIFIER {
 			s := fmt.Sprintf("error parsing attr list: expected ID or bracket, got %v", tok.Str)
 			return errors.New(s)
@@ -117,17 +112,32 @@ func parseAttrList(lxr *grlex.Lexer, attrs map[string]string) error {
 		if attrs != nil {
 			attrs[key] = val
 		}
-		needContents = false
 
-		// Continue if ","
+		// Take a peek at the next token
 		if tok, err = lxr.PeekToken(); err != nil {
 			return err
 		}
-		if tok.Tok == grlex.COMMA {
-			if err = requiredToken(lxr, grlex.COMMA); err != nil {
+
+		// End of attrs?
+		if tok.Tok == grlex.RBRACKET {
+			break
+		}
+
+		if comma {
+			// Expect comma between attributes
+			if tok.Tok == grlex.COMMA {
+				if err = requiredToken(lxr, grlex.COMMA); err != nil {
+					return err
+				}
+				if tok, err = lxr.PeekToken(); err != nil {
+					return err
+				}
+			}
+		} else {
+			// Expect new identifier
+			if tok, err = lxr.PeekToken(); err != nil {
 				return err
 			}
-			needContents = true
 		}
 	}
 	if err := requiredToken(lxr, grlex.RBRACKET); err != nil {
@@ -153,7 +163,7 @@ func parseNode(lxr *grlex.Lexer) error {
 	if err := requiredId(lxr, "node"); err != nil {
 		return err
 	}
-	if err := parseAttrList(lxr, nil); err != nil {
+	if err := parseAttrList(lxr, nil, true); err != nil {
 		return err
 	}
 	return nil
@@ -163,7 +173,7 @@ func parseEdge(lxr *grlex.Lexer) error {
 	if err := requiredId(lxr, "edge"); err != nil {
 		return err
 	}
-	if err := parseAttrList(lxr, nil); err != nil {
+	if err := parseAttrList(lxr, nil, false); err != nil {
 		return err
 	}
 	return nil
@@ -174,15 +184,10 @@ func parseNodeDef(lxr *grlex.Lexer, g *zgr.Graph, id string) error {
 	// ID has already been parsed at this point
 
 	attrs := make(map[string]string)
-	if err := parseAttrList(lxr, attrs); err != nil {
+	if err := parseAttrList(lxr, attrs, true); err != nil {
 		return err
 	}
-
-	var label string
-	if v, ok := attrs["label"]; ok {
-		label = v
-	}
-	if err := g.MakeNode(id, label); err != nil {
+	if err := g.MakeNode(id, attrs); err != nil {
 		return err
 	}
 	return nil
@@ -198,11 +203,12 @@ func parseEdgeDef(lxr *grlex.Lexer, g *zgr.Graph, src string) error {
 		return err
 	}
 	sink := lxr.Cur.Str
-	if err := parseAttrList(lxr, nil); err != nil {
+	attrs := make(map[string]string)
+	if err := parseAttrList(lxr, attrs, false); err != nil {
 		return err
 	}
 
-	if err := g.AddEdge(src, sink); err != nil {
+	if err := g.AddEdge(src, sink, attrs); err != nil {
 		return err
 	}
 	return nil

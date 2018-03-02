@@ -198,15 +198,16 @@ func (lxr *Lexer) GetToken2() error {
 			lxr.Cur.Tok = CONST
 			return nil
 		case b == '"':
+			var sink strings.Builder
 			// quoted string
-			if err = lxr.consume1(&sb, '"'); err != nil {
+			if err = lxr.consume1(&sink, '"'); err != nil {
 				return err
 			}
 			err = lxr.readqual(&sb, isStringConst)
 			if err != nil {
 				return err
 			}
-			if err = lxr.consume1(&sb, '"'); err != nil {
+			if err = lxr.consume1(&sink, '"'); err != nil {
 				return err
 			}
 			lxr.Cur.Str = sb.String()
