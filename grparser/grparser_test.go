@@ -1,11 +1,11 @@
 package grparser
 
 import (
-	"bufio"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/thanm/grvutils/testutils"
 	"github.com/thanm/grvutils/zgr"
 )
 
@@ -20,39 +20,6 @@ func doparse(ins string, t *testing.T) string {
 		return fmt.Sprintf("%v", err)
 	}
 	return g.String()
-}
-
-func split(s string) []string {
-	scanner := bufio.NewScanner(strings.NewReader(s))
-	scanner.Split(bufio.ScanWords)
-	var res []string
-	for scanner.Scan() {
-		res = append(res, scanner.Text())
-	}
-	return res
-}
-
-func check(raw string, expected string, t *testing.T) string {
-	cooked := doparse(raw, t)
-	vcooked := split(cooked)
-	vexpected := split(expected)
-	reason := ""
-	if len(vcooked) != len(vexpected) {
-		reason = fmt.Sprintf("lengths differ (have %d want %d)",
-			len(vcooked), len(vexpected))
-	} else {
-		for i := 0; i < len(vcooked); i += 1 {
-			if vcooked[i] != vexpected[i] {
-				reason = fmt.Sprintf("diff at slot %d (have %s want %s)",
-					i, vcooked[i], vexpected[i])
-			}
-		}
-	}
-	if reason == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s\nraw=%s decoded='%s' wanted '%s':", reason,
-		raw, cooked, expected)
 }
 
 func TestBasic(t *testing.T) {
@@ -93,7 +60,8 @@ func TestBasic(t *testing.T) {
 		 N2: " three " E: { 1 0 }`,
 	}
 	for pos, ins := range inputs {
-		td := check(ins, expected[pos], t)
+		actual := doparse(ins, t)
+		td := testutils.Check(actual, expected[pos])
 		if td != "" {
 			t.Errorf(td)
 		}

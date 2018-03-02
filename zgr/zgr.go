@@ -63,3 +63,18 @@ func (g *Graph) String() string {
 	}
 	return sb.String()
 }
+
+func (g *Graph) Transpose() *Graph {
+	tg := &Graph{ntab: make(map[string]int)}
+	for _, n := range g.nodes {
+		tn := n
+		tn.adjlist = []int{}
+		tg.nodes = append(tg.nodes, tn)
+	}
+	for i, n := range g.nodes {
+		for _, k := range n.adjlist {
+			tg.nodes[k].adjlist = append(tg.nodes[k].adjlist, i)
+		}
+	}
+	return tg
+}
