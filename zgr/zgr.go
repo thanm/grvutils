@@ -1,6 +1,7 @@
 package zgr
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +12,7 @@ type Node struct {
 	id, label string
 	adjlist   []uint32
 	attrs     []uint32
-	idx       int
+	idx       uint32
 }
 
 type Edge struct {
@@ -59,7 +60,7 @@ func (g *Graph) MakeNode(nid string, attrs map[string]string) error {
 	if lab, ok := attrs["label"]; ok {
 		nlabel = lab
 	}
-	n := Node{id: nid, label: nlabel, idx: len(g.nodes), attrs: res}
+	n := Node{id: nid, label: nlabel, idx: uint32(len(g.nodes)), attrs: res}
 	g.ntab[nid] = uint32(n.idx)
 	g.nodes = append(g.nodes, n)
 	return nil
@@ -123,8 +124,47 @@ func (g *Graph) Transpose() *Graph {
 	return tg
 }
 
-func (g *Graph) Write(w io.Writer) {
-	w.Write([]byte("digraph G {\n"))
+func (g *Graph) GetNode(idx uint32) *Node {
+	if idx < uint32(len(g.nodes)) {
+		return &g.nodes[idx]
+	}
+	return nil
+}
+
+func (g *Graph) GetEdges(n *Node) []uint32 {
+	return n.adjlist
+}
+
+func (g *Graph) GetEdge(eidx uint32) *Edge {
+	if eidx < uint32(len(g.edges)) {
+		return &g.edges[eidx]
+	}
+	return nil
+}
+
+func (g *Graph) GetEndpoints(e *Edge) (uint32, uint32) {
+	return e.src, e.sink
+}
+
+func (g *Graph) GetNodeIndex(n *Node) uint32 {
+	return n.idx
+}
+
+func (g *Graph) LookupNode(nid string) *Node {
+	if idx, ok := g.ntab[nid]; ok {
+		return &g.nodes[idx]
+	}
+	return nil
+}
+
+func (g *Graph) GetNodeCount() uint32 {
+	return uint32(len(g.nodes))
+}
+
+func (g *Graph) Write(w io.Writer, toinclude map[uint32]bool) error {
+	bw := bufio.NewWriter(w)
+	bw.Write([]byte("digraph G {\n"))
 	panic("not yet impl")
-	w.Write([]byte("}\n"))
+	bw.Write([]byte("}\n"))
+	return nil
 }

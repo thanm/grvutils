@@ -59,3 +59,27 @@ func TestTranspose(t *testing.T) {
 		t.Errorf(td)
 	}
 }
+
+func TestAccess(t *testing.T) {
+	g := makeg()
+	nn := g.GetNodeCount()
+	if nn != 3 {
+		t.Errorf("bad GetNodeCount wanted 3 got %d", nn)
+	}
+	n0 := g.LookupNode("1")
+	if n0 == nil {
+		t.Errorf("bad LookupNode(1) returned nil")
+	}
+	es := g.GetEdges(n0)
+	if len(es) != 1 {
+		t.Errorf("getEdges(n0) len wanted 1 got %d", len(es))
+	}
+	e0 := g.GetEdge(es[0])
+	if e0 == nil {
+		t.Errorf("GetEdge(es[0]) returned nil")
+	}
+	src, sink := g.GetEndpoints(e0)
+	if src != 0 || sink != 1 {
+		t.Errorf("GetEndpoints returned %d,%d: wanted 0,1", src, sink)
+	}
+}
