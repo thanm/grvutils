@@ -10,34 +10,40 @@ import (
 	"github.com/thanm/grvutils/zgr"
 )
 
-func mkerror(lxr *grlex.Lexer, s string) error {
-	ers := fmt.Sprintf("error: line %d: %s", lxr.CurLine(), s)
+type pstate struct {
+	lxr    *grlex.Lexer
+	tok    grlex.Token
+	peeked bool
+}
+
+func mkerror(p *pstate, s string) error {
+	ers := fmt.Sprintf("error: line %d: %s", p.lxr.CurLine(), s)
 	return errors.New(ers)
 }
 
-func requiredId(lxr *grlex.Lexer, name string) error {
-	if err := requiredToken(lxr, grlex.IDENTIFIER); err != nil {
+func requiredId(p *pstate, name string) error {
+	if err := requiredToken(p, grlex.IDENTIFIER); err != nil {
 		return err
 	}
-	if lxr.Cur.Str != name {
+	if p.tok.Str != name {
 		s := fmt.Sprintf("expected token '%s', got identifier '%s'",
-			name, lxr.Cur.Str)
-		return mkerror(lxr, s)
+			name, p.tok.Str)
+		return mkerror(p, s)
 	}
 	return nil
 }
 
-func requiredToken(lxr *grlex.Lexer, tok int) error {
-	if err := lxr.GetToken(); err != nil {
+func requiredToken(p *pstate, tok int) error {
+	if err := p.GetToken(); err != nil {
 		ts := grlex.TokenToString(tok)
 		s := fmt.Sprintf("expected %s token, got error: %v", ts, err)
-		return mkerror(lxr, s)
+		return mkerror(p, s)
 	}
-	if lxr.Cur.Tok != tok {
+	if p.tok.Tok != tok {
 		ets := grlex.TokenToString(tok)
-		gts := grlex.TokenToString(lxr.Cur.Tok)
+		gts := grlex.TokenToString(p.tok.Tok)
 		s := fmt.Sprintf("expected %s token, got token '%s'", ets, gts)
-		return mkerror(lxr, s)
+		return mkerror(p, s)
 	}
 	return nil
 }
@@ -55,17 +61,17 @@ func tokenClassToStr(class map[int]bool) string {
 	return sb.String()
 }
 
-func requiredTokenClass(lxr *grlex.Lexer, class map[int]bool) error {
-	if err := lxr.GetToken(); err != nil {
-		ts := grlex.TokenToString(lxr.Cur.Tok)
+func requiredTokenClass(p *pstate, class map[int]bool) error {
+	if err := p.GetToken(); err != nil {
+		ts := grlex.TokenToString(p.tok.Tok)
 		s := fmt.Sprintf("expected token '%s', got error: %v", ts, err)
-		return mkerror(lxr, s)
+		return mkerror(p, s)
 	}
-	if _, ok := class[lxr.Cur.Tok]; !ok {
+	if _, ok := class[p.tok.Tok]; !ok {
 		ets := tokenClassToStr(class)
-		gts := grlex.TokenToString(lxr.Cur.Tok)
+		gts := grlex.TokenToString(p.tok.Tok)
 		s := fmt.Sprintf("expected token [%s], got token '%s'", ets, gts)
-		return mkerror(lxr, s)
+		return mkerror(p, s)
 	}
 	return nil
 }
@@ -78,226 +84,273 @@ var attrValClass map[int]bool = map[int]bool{
 
 // Confusingly, some attribute lists seem to have commas and some do not.
 
-func parseAttrList(lxr *grlex.Lexer, attrs map[string]string, comma bool) error {
+func parseAttrList(p *pstate, attrs map[string]string, comma bool) error {
 	var err error
-	var tok grlex.Token
 
-	if err = requiredToken(lxr, grlex.LBRACKET); err != nil {
+	// Attribute lists are optional
+	if err = p.PeekToken(); err != nil {
+		return err
+	}
+	if p.tok.Tok != grlex.LBRACKET {
+		return nil
+	}
+
+	if err = requiredToken(p, grlex.LBRACKET); err != nil {
 		return err
 	}
 
-	if tok, err = lxr.PeekToken(); err != nil {
-		s := fmt.Sprintf("error %v", err)
-		return mkerror(lxr, s)
+	// What's next?
+	if err = p.PeekToken(); err != nil {
+		return err
 	}
 	var key, val string
 	for {
-		if tok.Tok != grlex.IDENTIFIER {
-			s := fmt.Sprintf("error parsing attr list: expected ID or bracket, got %v", tok.Str)
+		if p.tok.Tok != grlex.IDENTIFIER {
+			s := fmt.Sprintf("error parsing attr list: expected ID or bracket, got %v", p.tok.Str)
 			return errors.New(s)
 		}
-		key = tok.Str
+		key = p.tok.Str
 
 		// Consume X=Y
-		if err := requiredToken(lxr, grlex.IDENTIFIER); err != nil {
+		if err := requiredToken(p, grlex.IDENTIFIER); err != nil {
 			return err
 		}
-		if err := requiredToken(lxr, grlex.EQUAL); err != nil {
+		if err := requiredToken(p, grlex.EQUAL); err != nil {
 			return err
 		}
-		if err := requiredTokenClass(lxr, attrValClass); err != nil {
+		if err := requiredTokenClass(p, attrValClass); err != nil {
 			return err
 		}
-		val = lxr.Cur.Str
+		val = p.tok.Str
 		if attrs != nil {
 			attrs[key] = val
 		}
 
 		// Take a peek at the next token
-		if tok, err = lxr.PeekToken(); err != nil {
+		if err = p.PeekToken(); err != nil {
 			return err
 		}
 
 		// End of attrs?
-		if tok.Tok == grlex.RBRACKET {
+		if p.tok.Tok == grlex.RBRACKET {
 			break
 		}
 
 		if comma {
 			// Expect comma between attributes
-			if tok.Tok == grlex.COMMA {
-				if err = requiredToken(lxr, grlex.COMMA); err != nil {
+			if p.tok.Tok == grlex.COMMA {
+				if err = requiredToken(p, grlex.COMMA); err != nil {
 					return err
 				}
-				if tok, err = lxr.PeekToken(); err != nil {
-					return err
-				}
-			}
-		} else {
-			// Expect new identifier
-			if tok, err = lxr.PeekToken(); err != nil {
-				return err
 			}
 		}
+		if err = p.PeekToken(); err != nil {
+			return err
+		}
 	}
-	if err := requiredToken(lxr, grlex.RBRACKET); err != nil {
+	if err := requiredToken(p, grlex.RBRACKET); err != nil {
 		return err
 	}
 	return nil
 }
 
-func parseAttribute(lxr *grlex.Lexer) error {
-	if err := requiredToken(lxr, grlex.IDENTIFIER); err != nil {
+func parseAttribute(p *pstate) error {
+	if err := requiredToken(p, grlex.IDENTIFIER); err != nil {
 		return err
 	}
-	if err := requiredToken(lxr, grlex.EQUAL); err != nil {
+	if err := requiredToken(p, grlex.EQUAL); err != nil {
 		return err
 	}
-	if err := requiredTokenClass(lxr, attrValClass); err != nil {
-		return err
-	}
-	return nil
-}
-
-func parseNode(lxr *grlex.Lexer) error {
-	if err := requiredId(lxr, "node"); err != nil {
-		return err
-	}
-	if err := parseAttrList(lxr, nil, true); err != nil {
+	if err := requiredTokenClass(p, attrValClass); err != nil {
 		return err
 	}
 	return nil
 }
 
-func parseEdge(lxr *grlex.Lexer) error {
-	if err := requiredId(lxr, "edge"); err != nil {
+func parseNode(p *pstate) error {
+	if err := requiredId(p, "node"); err != nil {
 		return err
 	}
-	if err := parseAttrList(lxr, nil, false); err != nil {
+	if err := parseAttrList(p, nil, true); err != nil {
 		return err
 	}
 	return nil
 }
 
-func parseNodeDef(lxr *grlex.Lexer, g *zgr.Graph, id string) error {
+func parseEdge(p *pstate) error {
+	if err := requiredId(p, "edge"); err != nil {
+		return err
+	}
+	if err := parseAttrList(p, nil, false); err != nil {
+		return err
+	}
+	return nil
+}
+
+func parseNodeDef(p *pstate, g *zgr.Graph, id string, pass int) error {
 
 	// ID has already been parsed at this point
 
 	attrs := make(map[string]string)
-	if err := parseAttrList(lxr, attrs, true); err != nil {
+	if err := parseAttrList(p, attrs, true); err != nil {
 		return err
 	}
-	if err := g.MakeNode(id, attrs); err != nil {
-		return err
+	if pass == 1 {
+		if err := g.MakeNode(id, attrs); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func parseEdgeDef(lxr *grlex.Lexer, g *zgr.Graph, src string) error {
+func parseEdgeDef(p *pstate, g *zgr.Graph, src string, pass int) error {
 
 	// ID has already been parsed; now parse "-> dest"
-	if err := requiredToken(lxr, grlex.EDGEOPD); err != nil {
+	if err := requiredToken(p, grlex.EDGEOPD); err != nil {
 		return err
 	}
-	if err := requiredToken(lxr, grlex.STRING); err != nil {
+	if err := requiredToken(p, grlex.STRING); err != nil {
 		return err
 	}
-	sink := lxr.Cur.Str
+	sink := p.tok.Str
 	attrs := make(map[string]string)
-	if err := parseAttrList(lxr, attrs, false); err != nil {
+	if err := parseAttrList(p, attrs, false); err != nil {
 		return err
 	}
+	//	fmt.Fprintf(os.Stderr, "parseEdgeDef: %d attrs\n", len(attrs))
 
-	if err := g.AddEdge(src, sink, attrs); err != nil {
-		return err
+	if pass == 2 {
+		if err := g.AddEdge(src, sink, attrs); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func ParseGraph(r io.Reader, g *zgr.Graph) error {
-	lxr := grlex.NewLexer(r)
+func (p *pstate) PeekToken() error {
+	var err error
+	if p.peeked {
+		return nil
+	}
+	if p.tok, err = p.lxr.PeekToken(); err != nil {
+		s := fmt.Sprintf("error %v", err)
+		return mkerror(p, s)
+	}
+	p.peeked = true
+	return nil
+}
+
+func (p *pstate) GetToken() error {
+	if err := p.lxr.GetToken(); err != nil {
+		return err
+	}
+	p.tok = p.lxr.Cur
+	p.peeked = false
+	return nil
+}
+
+func parse(g *zgr.Graph, lxr *grlex.Lexer, pass int) error {
+
+	var err error
+	state := pstate{lxr: lxr}
+	p := &state
 
 	// Preamble: graph <name> {
-	if err := requiredId(lxr, "digraph"); err != nil {
+	if err := requiredId(p, "digraph"); err != nil {
 		return err
 	}
-	if err := requiredToken(lxr, grlex.IDENTIFIER); err != nil {
+	if err := requiredToken(p, grlex.IDENTIFIER); err != nil {
 		return err
 	}
-	if err := requiredToken(lxr, grlex.LCURLY); err != nil {
+	if err := requiredToken(p, grlex.LCURLY); err != nil {
 		return err
 	}
 
 	// Parse a series of node/edge clauses
 	done := false
 	for !done {
-		var tok grlex.Token
-		var err error
 
 		// Look at first token. Should be either identifier or string.
-		if tok, err = lxr.PeekToken(); err != nil {
+		if err = p.PeekToken(); err != nil {
 			return err
 		}
 
-		switch tok.Tok {
+		switch p.tok.Tok {
 		case grlex.RCURLY:
 			done = true
 			break
 		case grlex.IDENTIFIER:
-			if tok.Str == "node" {
-				if err = parseNode(lxr); err != nil {
+			if p.tok.Str == "node" {
+				if err = parseNode(p); err != nil {
 					return err
 				}
 				continue
 			}
-			if tok.Str == "edge" {
-				if err = parseEdge(lxr); err != nil {
+			if p.tok.Str == "edge" {
+				if err = parseEdge(p); err != nil {
 					return err
 				}
 				continue
 			}
 
 			// Graph attribute
-			if err = parseAttribute(lxr); err != nil {
+			if err = parseAttribute(p); err != nil {
 				return err
 			}
 			continue
 		case grlex.STRING:
 			// Consume string
-			if err = requiredToken(lxr, grlex.STRING); err != nil {
+			if err = requiredToken(p, grlex.STRING); err != nil {
 				return err
 			}
-			src := lxr.Cur.Str
+			src := p.tok.Str
 
 			// Edge or node definition; look at next token
-			if tok, err = lxr.PeekToken(); err != nil {
+			if err = p.PeekToken(); err != nil {
 				return err
-			}
-
-			// node def: "foo" [attrlist]
-			if tok.Tok == grlex.LBRACKET {
-				if err = parseNodeDef(lxr, g, src); err != nil {
-					return err
-				}
-				continue
 			}
 
 			// edge def: "foo" -> ...
-			if tok.Tok == grlex.EDGEOPD {
-				if err := parseEdgeDef(lxr, g, src); err != nil {
+			if p.tok.Tok == grlex.EDGEOPD {
+				if err := parseEdgeDef(p, g, src, pass); err != nil {
 					return err
 				}
 				continue
 			}
+
+			// node def: "foo" [attrlist]
+			if err = parseNodeDef(p, g, src, pass); err != nil {
+				return err
+			}
+			continue
+
 		default:
 			// unknown token
-			ts := grlex.TokenToString(tok.Tok)
+			ts := grlex.TokenToString(p.tok.Tok)
 			s := fmt.Sprintf("unexpected token: '%s'", ts)
-			return mkerror(lxr, s)
+			return mkerror(p, s)
 		}
 	}
 
-	if err := requiredToken(lxr, grlex.RCURLY); err != nil {
+	if err := requiredToken(p, grlex.RCURLY); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ParseGraph(r io.ReadSeeker, g *zgr.Graph) error {
+	lxr := grlex.NewLexer(r)
+
+	// Pass 1: collect nodes
+	if err := parse(g, lxr, 1); err != nil {
+		return err
+	}
+
+	lxr.Reset()
+
+	// Pass 2: connect edges
+	if err := parse(g, lxr, 2); err != nil {
 		return err
 	}
 

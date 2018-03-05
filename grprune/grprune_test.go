@@ -44,8 +44,9 @@ const testgraph = `digraph Y {
  }`
 
 type testcase struct {
-	mode  string
-	depth int
+	mode    string
+	exclude string
+	depth   int
 }
 
 func doTest(g *zgr.Graph, t *testing.T, tmpfile string, tc testcase) string {
@@ -60,7 +61,7 @@ func doTest(g *zgr.Graph, t *testing.T, tmpfile string, tc testcase) string {
 	}
 
 	// Apply prune
-	if err = PruneGraph(g, "\"c\"", tc.mode, tc.depth, tf); err != nil {
+	if err = PruneGraph(g, "c", tc.mode, tc.depth, tc.exclude, tf); err != nil {
 		t.Errorf("prune failed: %v", err)
 	}
 
@@ -85,12 +86,12 @@ func doTest(g *zgr.Graph, t *testing.T, tmpfile string, tc testcase) string {
 
 func TestBasic(t *testing.T) {
 	var inputs = []testcase{
-		testcase{"both", 0},
-		testcase{"fwd", 1},
-		testcase{"bwd", 1},
-		testcase{"both", 1},
-		testcase{"fwd", 2},
-		testcase{"bwd", 2},
+		testcase{"both", "", 0},
+		testcase{"fwd", "", 1},
+		testcase{"bwd", "", 1},
+		testcase{"both", "", 1},
+		testcase{"fwd", "", 2},
+		testcase{"bwd", "e", 2},
 	}
 	var expected = []string{
 
@@ -116,11 +117,10 @@ func TestBasic(t *testing.T) {
 		 N3: '"D"' E: { 4 }
 		 N4: '"E"' E: { }`,
 
-		`N0: '"A"' E: { 4 }
+		`N0: '"A"' E: { 3 }
 		 N1: '"C"' E: { }
-		 N2: '"E"' E: { 3 }
-		 N3: '"F"' E: { 1 }
-		 N4: '"G"' E: { 1 }`,
+		 N2: '"F"' E: { 1 }
+		 N3: '"G"' E: { 1 }`,
 	}
 	graph, err := doparse(testgraph)
 	if err != nil {

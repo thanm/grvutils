@@ -17,6 +17,7 @@ var modeflag = flag.String("m", "both", "Prune mode. One of {fwd,bwd,both}.")
 var infileflag = flag.String("i", "", "Input file")
 var outfileflag = flag.String("o", "", "Output file")
 var rootidflag = flag.String("r", "", "Root node ID")
+var excludeflag = flag.String("e", "", "Nodes to exclude")
 
 func verb(vlevel int, s string, a ...interface{}) {
 	if *verbflag >= vlevel {
@@ -60,7 +61,7 @@ func main() {
 	var outfile *os.File = os.Stdout
 	if len(*outfileflag) > 0 {
 		verb(1, "opening %s", *outfileflag)
-		outfile, err = os.OpenFile(*outfileflag, os.O_WRONLY|os.O_CREATE, 0666)
+		outfile, err = os.OpenFile(*outfileflag, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -70,7 +71,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = grprune.PruneGraph(g, *rootidflag, *modeflag, *depthflag, outfile)
+
+	err = grprune.PruneGraph(g, *rootidflag, *modeflag, *depthflag, *excludeflag, outfile)
 	if err != nil {
 		log.Fatal(err)
 	}

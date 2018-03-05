@@ -10,9 +10,7 @@ const (
 	TOOMANY = 10000
 )
 
-func tokenize(ins string) string {
-	sr := strings.NewReader(ins)
-	lxr := NewLexer(sr)
+func dolex(lxr *Lexer) string {
 	var sb strings.Builder
 	for i := 0; i < TOOMANY; i += 1 {
 		if err := lxr.GetToken(); err != nil {
@@ -26,6 +24,17 @@ func tokenize(ins string) string {
 		sb.WriteString(fmt.Sprintf("(%s '%s')", ts, lxr.Cur.Str))
 	}
 	return sb.String()
+}
+
+func mklexer(ins string) *Lexer {
+	sr := strings.NewReader(ins)
+	lxr := NewLexer(sr)
+	return lxr
+}
+
+func tokenize(ins string) string {
+	lxr := mklexer(ins)
+	return dolex(lxr)
 }
 
 func testTok(raw string, expected string) string {
@@ -63,5 +72,30 @@ func TestBasic(t *testing.T) {
 		if td != "" {
 			t.Errorf(td)
 		}
+	}
+}
+
+func TestSeek(t *testing.T) {
+	var input string = `foo bar baz 1.0 "blix" 22`
+	var expected = `(id 'foo')(id 'bar')(id 'baz')(const '1.0')(str '"blix"')(const '22')`
+	lxr := mklexer(input)
+
+	// First pass through the string
+	res1 := dolex(lxr)
+
+	// Reset to start
+	lxr.Reset()
+
+	// Second pass through the string
+	res2 := dolex(lxr)
+
+	// Strings should be equal
+	if res1 != res1 {
+		t.Errorf("expected res1 == res2 got '%s' '%s'", res1, res2)
+	}
+
+	// String should be as expected
+	if res1 != expected {
+		t.Errorf("expected res1 == '%s' got '%s'", expected, res1)
 	}
 }

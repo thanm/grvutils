@@ -163,14 +163,17 @@ func (g *Graph) GetNodeCount() uint32 {
 }
 
 func (g *Graph) writeAttrs(bw *bufio.Writer, attrs []uint32, addcom bool) {
-	bw.WriteString("[")
+	if len(attrs) == 0 {
+		return
+	}
+	bw.WriteString(" [")
 	first := true
 	for _, idx := range attrs {
 		if !first {
-			bw.WriteString(" ")
 			if addcom {
 				bw.WriteString(",")
 			}
+			bw.WriteString(" ")
 		}
 		first = false
 		a := g.attrs[idx]

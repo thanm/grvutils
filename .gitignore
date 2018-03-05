@@ -13,3 +13,5 @@
 # Emacs temps
 *~
 
+# Dot files
+*.dot

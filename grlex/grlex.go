@@ -69,6 +69,7 @@ func isStringConst(b, bp byte) bool {
 }
 
 type Lexer struct {
+	rskr   io.ReadSeeker
 	rdr    bufio.Reader
 	Cur    Token
 	lno    uint32
@@ -77,8 +78,15 @@ type Lexer struct {
 	peeked bool
 }
 
-func NewLexer(r io.Reader) *Lexer {
-	return &Lexer{rdr: *bufio.NewReader(r), lno: 1}
+func NewLexer(r io.ReadSeeker) *Lexer {
+	return &Lexer{rskr: r, rdr: *bufio.NewReader(r), lno: 1}
+}
+
+func (lxr *Lexer) Reset() {
+	lxr.peeke = nil
+	lxr.peeked = false
+	lxr.rskr.Seek(0, io.SeekStart)
+	lxr.rdr = *bufio.NewReader(lxr.rskr)
 }
 
 func (lxr *Lexer) consume1(sb *strings.Builder, eb byte) error {
