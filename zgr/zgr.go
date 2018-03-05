@@ -108,7 +108,8 @@ func (g *Graph) String() string {
 func (g *Graph) Transpose() *Graph {
 	tg := NewGraph()
 	tg.attrs = g.attrs
-	tg.attrtab = tg.attrtab
+	tg.attrtab = g.attrtab
+	tg.ntab = g.ntab
 	for _, n := range g.nodes {
 		tn := n
 		tn.adjlist = []uint32{}
@@ -116,10 +117,10 @@ func (g *Graph) Transpose() *Graph {
 	}
 	for i, e := range g.edges {
 		tg.nodes[e.sink].adjlist = append(tg.nodes[e.sink].adjlist, uint32(i))
-		tmp := e.src
-		e.src = e.sink
-		e.sink = tmp
-		tg.edges = append(tg.edges, e)
+		var te Edge = e
+		te.src = e.sink
+		te.sink = e.src
+		tg.edges = append(tg.edges, te)
 	}
 	return tg
 }
@@ -161,10 +162,56 @@ func (g *Graph) GetNodeCount() uint32 {
 	return uint32(len(g.nodes))
 }
 
+func (g *Graph) writeAttrs(bw *bufio.Writer, attrs []uint32, addcom bool) {
+	bw.WriteString("[")
+	first := true
+	for _, idx := range attrs {
+		if !first {
+			bw.WriteString(" ")
+			if addcom {
+				bw.WriteString(",")
+			}
+		}
+		first = false
+		a := g.attrs[idx]
+		bw.WriteString(fmt.Sprintf("%s=%s", a.key, a.val))
+	}
+	bw.WriteString("]")
+}
+
 func (g *Graph) Write(w io.Writer, toinclude map[uint32]bool) error {
 	bw := bufio.NewWriter(w)
-	bw.Write([]byte("digraph G {\n"))
-	panic("not yet impl")
-	bw.Write([]byte("}\n"))
+	bw.WriteString("digraph G {\n")
+
+	// Nodes
+	for nid, n := range g.nodes {
+		if _, ok := toinclude[uint32(nid)]; !ok {
+			continue
+		}
+		bw.WriteString(fmt.Sprintf("%s ", n.id))
+		g.writeAttrs(bw, n.attrs, true)
+		bw.WriteString("\n")
+	}
+
+	// Edges
+	for nid, n := range g.nodes {
+		if _, ok := toinclude[uint32(nid)]; !ok {
+			continue
+		}
+		for _, eid := range n.adjlist {
+			e := g.edges[eid]
+			if _, ok := toinclude[uint32(e.sink)]; !ok {
+				continue
+			}
+			bw.WriteString(fmt.Sprintf("%s -> %s",
+				g.nodes[e.src].id, g.nodes[e.sink].id))
+			g.writeAttrs(bw, e.attrs, false)
+			bw.WriteString("\n")
+
+		}
+	}
+
+	bw.WriteString("}\n")
+	bw.Flush()
 	return nil
 }

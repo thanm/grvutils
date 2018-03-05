@@ -53,11 +53,11 @@ func TestBasic(t *testing.T) {
 	}
 	var expected = []string{
 		"",
-		`N0: 'A' E: { 1 }
- 	  	 N1: 'B' E: { }`,
-		`N0: 'one' E: { 1 2 }
- 		 N1: 'two' E: { 0 2 }
-		 N2: 'three' E: { 1 0 }`,
+		`N0: '"A"' E: { 1 }
+ 	  	 N1: '"B"' E: { }`,
+		`N0: '"one"' E: { 1 2 }
+ 		 N1: '"two"' E: { 0 2 }
+		 N2: '"three"' E: { 1 0 }`,
 	}
 	for pos, ins := range inputs {
 		actual := doparse(ins, t)

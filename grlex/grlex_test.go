@@ -54,9 +54,9 @@ func TestBasic(t *testing.T) {
 		"",
 		"(id 'graph')(id 'foo')",
 		"(const '101.1')",
-		"(str 'foo')",
-		"(str 'foo \\\"bar\\\" baz')",
-		`(id 'digraph')(id 'n')({ '{')(id 'rankdir')(= '=')(str 'LR')(id 'node')([ '[')(id 'fontsize')(= '=')(const '10')(, ',')(id 'shape')(= '=')(id 'box')(, ',')(id 'height')(= '=')(const '0.25')(] ']')(id 'edge')([ '[')(id 'q')(= '=')(id 'r')(] ']')(str '0x556c43bea3c0')([ '[')(id 'label')(= '=')(str 'blah')(] ']')(str '0x556c42f19ba0')(-> '->')(str '0x556c43bea3c0')([ '[')(id 'label')(= '=')(str ' phony')(] ']')`,
+		`(str '"foo"')`,
+		`(str '"foo \"bar\" baz"')`,
+		`(id 'digraph')(id 'n')({ '{')(id 'rankdir')(= '=')(str '"LR"')(id 'node')([ '[')(id 'fontsize')(= '=')(const '10')(, ',')(id 'shape')(= '=')(id 'box')(, ',')(id 'height')(= '=')(const '0.25')(] ']')(id 'edge')([ '[')(id 'q')(= '=')(id 'r')(] ']')(str '"0x556c43bea3c0"')([ '[')(id 'label')(= '=')(str '"blah"')(] ']')(str '"0x556c42f19ba0"')(-> '->')(str '"0x556c43bea3c0"')([ '[')(id 'label')(= '=')(str '" phony"')(] ']')`,
 	}
 	for pos, ins := range inputs {
 		td := testTok(ins, expected[pos])

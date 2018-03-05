@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/thanm/grvutils/zgr"
 )
@@ -49,15 +48,9 @@ func getPrunedSet(g *zgr.Graph, rootid string, mode string, depth int) (error, m
 	// Backwards walk from root
 	if mode == "both" || mode == "bwd" {
 		tg := g.Transpose()
+		rn := tg.LookupNode(rootid)
 		walk(tg, rn, 0, depth, include)
 	}
-
-	// Debugging: dump include set
-	fmt.Fprintf(os.Stderr, "include set:\n")
-	for k, _ := range include {
-		fmt.Fprintf(os.Stderr, " %d", k)
-	}
-	fmt.Fprintf(os.Stderr, "\n")
 
 	return nil, include
 }

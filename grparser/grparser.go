@@ -239,9 +239,6 @@ func ParseGraph(r io.Reader, g *zgr.Graph) error {
 			return err
 		}
 
-		//fmt.Fprintf(os.Stderr, "++ peeked: %s '%s'\n",
-		//grlex.TokenToString(tok.Tok), tok.Str)
-
 		switch tok.Tok {
 		case grlex.RCURLY:
 			done = true

@@ -66,11 +66,11 @@ func main() {
 		}
 	}
 	g := zgr.NewGraph()
-	err = grparser.ParseGraph(*infile, g)
+	err = grparser.ParseGraph(infile, g)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = grprune.PruneGraph(g, *rootidflag, *modeflag, *depthflag, *outfile)
+	err = grprune.PruneGraph(g, *rootidflag, *modeflag, *depthflag, outfile)
 	if err != nil {
 		log.Fatal(err)
 	}
