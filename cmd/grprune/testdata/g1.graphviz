@@ -1,0 +1,17 @@
+digraph Y {
+   "a" [label="A"]
+   "b" [label="B"]
+   "c" [label="C"]
+   "d" [label="D"]
+   "e" [label="E"]
+   "f" [label="F"]
+   "g" [label="G"]
+   "c" -> "b" [x=y]
+   "c" -> "d" [z=w]
+   "d" -> "e" [q=r]
+   "g" -> "c" [q=r]
+   "f" -> "c" [b=1]
+   "b" -> "a" [b=1]
+   "e" -> "f" [b=1]
+   "a" -> "g" [b=1]
+}
