@@ -48,3 +48,8 @@ Running the grpune tool:
 Dot representation of the output 'pruned1.graph' above:
 
 ![](images/pruned1.png)
+
+Scaled:
+
+<img src="images/pruned1.png" align="left" height="125" width="89"/>
+
