@@ -18,6 +18,7 @@ type pstate struct {
 
 func mkerror(p *pstate, s string) error {
 	ers := fmt.Sprintf("error: line %d: %s", p.lxr.CurLine(), s)
+	panic(ers)
 	return errors.New(ers)
 }
 
@@ -36,13 +37,13 @@ func requiredId(p *pstate, name string) error {
 func requiredToken(p *pstate, tok int) error {
 	if err := p.GetToken(); err != nil {
 		ts := grlex.TokenToString(tok)
-		s := fmt.Sprintf("expected %s token, got error: %v", ts, err)
+		s := fmt.Sprintf("expected %q token, got error: %v", ts, err)
 		return mkerror(p, s)
 	}
 	if p.tok.Tok != tok {
 		ets := grlex.TokenToString(tok)
 		gts := grlex.TokenToString(p.tok.Tok)
-		s := fmt.Sprintf("expected %s token, got token '%s'", ets, gts)
+		s := fmt.Sprintf("expected %q token, got token '%s'", ets, gts)
 		return mkerror(p, s)
 	}
 	return nil

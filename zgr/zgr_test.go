@@ -45,6 +45,14 @@ func TestBasic(t *testing.T) {
 	if td != "" {
 		t.Errorf(td)
 	}
+	anode := g.GetNode(1)
+	if anode == nil {
+		t.Fatalf("missing lookup for node 1")
+	}
+	ie := g.GetInEdges(anode)
+	if len(ie) != 2 {
+		t.Fatalf("node 1 got %d in-edges want %d", len(ie), 2)
+	}
 }
 
 func TestTranspose(t *testing.T) {

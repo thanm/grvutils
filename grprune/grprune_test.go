@@ -75,6 +75,9 @@ func doTest(g *zgr.Graph, t *testing.T, tmpfile string, tc testcase) string {
 		t.Errorf("temp file open for read failed: %v", err)
 	}
 
+	content, _ := os.ReadFile(tmpfile)
+	t.Logf("content:\n%s\n", string(content))
+
 	// Parse, then dump
 	pg := zgr.NewGraph()
 	if err = grparser.ParseGraph(rtf, pg); err != nil {
@@ -124,7 +127,7 @@ func TestBasic(t *testing.T) {
 	}
 	graph, err := doparse(testgraph)
 	if err != nil {
-		t.Errorf("parsing initial graph: %v", err)
+		t.Fatalf("parsing initial graph: %v", err)
 	}
 	dir, err := ioutil.TempDir("", "prunedir")
 	if err != nil {
