@@ -125,6 +125,10 @@ func (n *Node) Id() string {
 	return n.id
 }
 
+func (n *Node) Idx() uint32 {
+	return n.idx
+}
+
 func (n *Node) String(g *Graph) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("N%d: '%s' E: {", n.idx, n.label))
