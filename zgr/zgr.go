@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 )
 
@@ -30,12 +31,13 @@ type Attr struct {
 }
 
 type Graph struct {
-	nodes   []Node
-	edges   []Edge
-	ntab    map[string]uint32
-	etab    map[npair]int
-	attrs   []Attr
-	attrtab map[Attr]uint32
+	nodes    []Node
+	edges    []Edge
+	ntab     map[string]uint32
+	etab     map[npair]int
+	attrs    []uint32
+	allattrs []Attr
+	attrtab  map[Attr]uint32
 }
 
 func NewGraph() *Graph {
@@ -53,12 +55,17 @@ func (g *Graph) populateAttrs(attrs map[string]string) []uint32 {
 		var idx uint32
 		var ok bool
 		if idx, ok = g.attrtab[a]; !ok {
-			idx = uint32(len(g.attrs))
-			g.attrs = append(g.attrs, a)
+			idx = uint32(len(g.allattrs))
+			g.allattrs = append(g.allattrs, a)
 		}
 		res = append(res, idx)
 	}
 	return res
+}
+
+func (g *Graph) SetAttrs(attrs map[string]string) error {
+	g.attrs = g.populateAttrs(attrs)
+	return nil
 }
 
 func (g *Graph) MakeNode(nid string, attrs map[string]string) error {
@@ -152,6 +159,7 @@ func (g *Graph) String() string {
 func (g *Graph) Transpose() *Graph {
 	tg := NewGraph()
 	tg.attrs = g.attrs
+	tg.allattrs = g.allattrs
 	tg.attrtab = g.attrtab
 	tg.ntab = g.ntab
 	for _, n := range g.nodes {
@@ -196,7 +204,7 @@ func (g *Graph) GetEdge(eidx uint32) *Edge {
 func (g *Graph) GetEdgeAttrs(e *Edge) map[string]string {
 	res := make(map[string]string)
 	for _, at := range e.attrs {
-		a := g.attrs[at]
+		a := g.allattrs[at]
 		res[a.key] = a.val
 	}
 	return res
@@ -221,29 +229,58 @@ func (g *Graph) GetNodeCount() uint32 {
 	return uint32(len(g.nodes))
 }
 
-func (g *Graph) writeAttrs(bw *bufio.Writer, attrs []uint32, addcom bool) {
+type comdisp uint8
+
+const (
+	noCommas  comdisp = 0
+	yesCommas comdisp = 1
+)
+
+type brackdisp uint8
+
+const (
+	noBrackets  brackdisp = 0
+	yesBrackets brackdisp = 1
+)
+
+func (g *Graph) writeAttrs(bw *bufio.Writer, attrs []uint32, com comdisp, brack brackdisp) {
 	if len(attrs) == 0 {
 		return
 	}
-	bw.WriteString(" [")
+	if brack == yesBrackets {
+		bw.WriteString(" [")
+	}
 	first := true
+	atlist := []string{}
 	for _, idx := range attrs {
+		a := g.allattrs[idx]
+		atlist = append(atlist, fmt.Sprintf("%s=%s", a.key, a.val))
+	}
+	sort.Strings(atlist)
+	for _, atv := range atlist {
 		if !first {
-			if addcom {
+			if com == yesCommas {
 				bw.WriteString(",")
 			}
 			bw.WriteString(" ")
 		}
 		first = false
-		a := g.attrs[idx]
-		bw.WriteString(fmt.Sprintf("%s=%s", a.key, a.val))
+		bw.WriteString(fmt.Sprintf("%s", atv))
 	}
-	bw.WriteString("]")
+	if brack == yesBrackets {
+		bw.WriteString("]")
+	}
 }
 
 func (g *Graph) Write(w io.Writer, toinclude map[uint32]bool) error {
 	bw := bufio.NewWriter(w)
 	bw.WriteString("digraph G {\n")
+
+	// Attrs for the graph itself.
+	if len(g.attrs) != 0 {
+		g.writeAttrs(bw, g.attrs, noCommas, noBrackets)
+		bw.WriteString("\n")
+	}
 
 	emit := func(x uint32) bool {
 		if toinclude == nil {
@@ -258,7 +295,7 @@ func (g *Graph) Write(w io.Writer, toinclude map[uint32]bool) error {
 			continue
 		}
 		bw.WriteString(fmt.Sprintf("%s ", n.id))
-		g.writeAttrs(bw, n.attrs, true)
+		g.writeAttrs(bw, n.attrs, yesCommas, yesBrackets)
 		bw.WriteString("\n")
 	}
 
@@ -274,7 +311,7 @@ func (g *Graph) Write(w io.Writer, toinclude map[uint32]bool) error {
 			}
 			bw.WriteString(fmt.Sprintf("%s -> %s",
 				g.nodes[e.src].id, g.nodes[e.sink].id))
-			g.writeAttrs(bw, e.attrs, false)
+			g.writeAttrs(bw, e.attrs, noCommas, yesBrackets)
 			bw.WriteString("\n")
 
 		}

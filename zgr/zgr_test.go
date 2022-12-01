@@ -91,3 +91,24 @@ func TestAccess(t *testing.T) {
 		t.Errorf("GetEndpoints returned %d,%d: wanted 0,1", src, sink)
 	}
 }
+
+func TestWrite(t *testing.T) {
+	g := makeg()
+	at := map[string]string{"splines": "polyline"}
+	g.SetAttrs(at)
+	toinclude := map[uint32]bool{0: true, 1: true}
+	var sb strings.Builder
+	if err := g.Write(&sb, toinclude); err != nil {
+		t.Fatalf("writing: %v", err)
+	}
+	got := strings.TrimSpace(sb.String())
+	want := strings.TrimSpace(`digraph G {
+splines=polyline
+1  [label=a, prop1=2, prop2=zilch]
+2  [label=b, prop1=2, prop2=zilch]
+1 -> 2 [label= prop1=2 prop2=zilch]
+}`)
+	if got != want {
+		t.Errorf("write: want:\n%s\ngot:\n%s\n", want, got)
+	}
+}
